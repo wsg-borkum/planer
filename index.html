@@ -69,7 +69,7 @@
                </div>
 
                <!-- Action Button: Draw / Auslosen -->
-               <button onclick="autoPairing()" class="bg-emerald-600 active:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center space-x-1.5 shadow transition-transform active:scale-95" title="Zufallsauslosung">
+               <button onclick="autoPairing()" class="bg-emerald-600 active:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-sm font-semibold flex items-center space-x-1.5 shadow transition-transform active:scale-95" title="Zufallsauslosung">
                    <i class="fa-solid fa-dice text-base"></i>
                </button>
            </div>
@@ -106,12 +106,20 @@
            </div>
 
            <div class="flex-1 bg-slate-800 rounded-xl border border-slate-700 p-3 overflow-y-auto min-h-0">
-               <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Anwesende Spieler</h3>
+               <div class="flex justify-between items-center mb-2">
+                   <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Spielerliste & Anwesenheit</h3>
+                   <div class="space-x-2 text-[11px]">
+                       <button onclick="setAllPresence(true)" class="text-emerald-400 hover:underline">Alle anwesend</button>
+                       <span class="text-slate-600">|</span>
+                       <button onclick="setAllPresence(false)" class="text-slate-400 hover:underline">Keine</button>
+                   </div>
+               </div>
                <ul id="player-list" class="space-y-2">
                    <!-- Dynamic List of Players -->
                </ul>
            </div>
        </section>
+
    </main>
 
    <!-- MODAL FOR DIRECT PLAYER ASSIGNMENT -->
@@ -144,14 +152,23 @@
    <!-- APPLICATION LOGIC -->
    <script>
        // --- DATA STATE ---
-       let players = JSON.parse(localStorage.getItem('tt_players')) || [];
+       let players = JSON.parse(localStorage.getItem('tt_players')) || [
+           { id: '1', name: 'Max', present: true },
+           { id: '2', name: 'Anna', present: true },
+           { id: '3', name: 'Lukas', present: true },
+           { id: '4', name: 'Sophie', present: true },
+           { id: '5', name: 'Tim', present: true },
+           { id: '6', name: 'Laura', present: true },
+           { id: '7', name: 'Felix', present: true },
+           { id: '8', name: 'Mia', present: true }
+       ];
 
        let currentGrid = '2x4';
        let tables = [];
        let timerInterval = null;
-       let timerSeconds = 0; // Stopwatch starts at 0
+       let timerSeconds = 0;
 
-       let selectedPlayerForPlacement = null; // Currently selected player from bank
+       let selectedPlayerForPlacement = null;
        let targetSlotTableId = null;
        let targetSlotNum = null;
 
@@ -220,23 +237,18 @@
                        </div>
 
                        <!-- Player Slots (Targeted selection on click) -->
-                       <div class="flex ${table.rotated ? 'flex-row justify-around' : 'flex-col space-y-1'} my-1">
-                           <div onclick="handleSlotClick(${table.id}, 1)" class="bg-slate-900/90 rounded px-2 py-1 text-center border ${selectedPlayerForPlacement ? 'border-emerald-500/80 bg-emerald-950/20' : 'border-slate-700/50'} cursor-pointer active:bg-slate-700/50 transition-colors">
+                       <div class="flex-1 flex ${table.rotated ? 'flex-row justify-around items-center' : 'flex-col justify-center space-y-1.5'} my-0.5">
+                           <div onclick="handleSlotClick(${table.id}, 1)" class="w-full bg-slate-900/90 rounded py-1.5 px-1 text-center border ${selectedPlayerForPlacement ? 'border-emerald-500/80 bg-emerald-950/20' : 'border-slate-700/50'} cursor-pointer active:bg-slate-700/50 transition-colors">
                                <span class="text-xs font-medium ${table.player1 ? 'text-slate-100 font-semibold' : 'text-slate-500 italic'}">
                                    ${table.player1 ? table.player1.name : '+ Wählen'}
                                </span>
                            </div>
-                           <div onclick="handleSlotClick(${table.id}, 2)" class="bg-slate-900/90 rounded px-2 py-1 text-center border ${selectedPlayerForPlacement ? 'border-emerald-500/80 bg-emerald-950/20' : 'border-slate-700/50'} cursor-pointer active:bg-slate-700/50 transition-colors">
+                           <div onclick="handleSlotClick(${table.id}, 2)" class="w-full bg-slate-900/90 rounded py-1.5 px-1 text-center border ${selectedPlayerForPlacement ? 'border-emerald-500/80 bg-emerald-950/20' : 'border-slate-700/50'} cursor-pointer active:bg-slate-700/50 transition-colors">
                                <span class="text-xs font-medium ${table.player2 ? 'text-slate-100 font-semibold' : 'text-slate-500 italic'}">
                                    ${table.player2 ? table.player2.name : '+ Wählen'}
                                </span>
                            </div>
                        </div>
-
-                       <!-- Clear Match Button -->
-                       <button onclick="clearTableMatches(${table.id})" class="text-[10px] text-slate-400 hover:text-slate-200 text-center w-full mt-0.5">
-                           Leeren
-                       </button>
                    `;
                }
                gridLayout.appendChild(tableCard);
@@ -264,16 +276,6 @@
            }
        }
 
-       function clearTableMatches(id) {
-           const table = tables.find(t => t.id === id);
-           if (table) {
-               table.player1 = null;
-               table.player2 = null;
-               renderGrid();
-               renderPlayerBank();
-           }
-       }
-
        // --- TARGETED PLAYER ASSIGNMENT LOGIC ---
        function handleSlotClick(tableId, slotNum) {
            const table = tables.find(t => t.id === tableId);
@@ -281,7 +283,6 @@
 
            const existingPlayer = slotNum === 1 ? table.player1 : table.player2;
 
-           // 1. If a player from the bank was selected first, assign them to this slot
            if (selectedPlayerForPlacement) {
                if (slotNum === 1) table.player1 = selectedPlayerForPlacement;
                if (slotNum === 2) table.player2 = selectedPlayerForPlacement;
@@ -291,7 +292,6 @@
                return;
            }
 
-           // 2. If slot already has a player, remove them back to bank on tap
            if (existingPlayer) {
                if (slotNum === 1) table.player1 = null;
                if (slotNum === 2) table.player2 = null;
@@ -300,15 +300,14 @@
                return;
            }
 
-           // 3. Open Modal to pick a specific player for this slot
            openPlayerModal(tableId, slotNum);
        }
 
        function selectPlayerFromBank(player) {
            if (selectedPlayerForPlacement && selectedPlayerForPlacement.id === player.id) {
-               selectedPlayerForPlacement = null; // Deselect
+               selectedPlayerForPlacement = null;
            } else {
-               selectedPlayerForPlacement = player; // Select
+               selectedPlayerForPlacement = player;
            }
            renderGrid();
            renderPlayerBank();
@@ -319,12 +318,12 @@
            targetSlotNum = slotNum;
 
            const assignedIds = getAssignedPlayerIds();
-           const availablePlayers = players.filter(p => !assignedIds.includes(p.id));
+           const availablePlayers = players.filter(p => p.present && !assignedIds.includes(p.id));
            const modalList = document.getElementById('modal-player-list');
            modalList.innerHTML = '';
 
            if (availablePlayers.length === 0) {
-               modalList.innerHTML = `<div class="text-xs text-slate-400 italic text-center py-4">Keine verfügbaren Spieler mehr vorhanden.</div>`;
+               modalList.innerHTML = `<div class="text-xs text-slate-400 italic text-center py-4">Keine anwesenden, freien Spieler vorhanden.</div>`;
            } else {
                availablePlayers.forEach(p => {
                    const btn = document.createElement('button');
@@ -369,7 +368,7 @@
            const badge = document.getElementById('player-count-badge');
            const hint = document.getElementById('selection-hint');
            const assignedIds = getAssignedPlayerIds();
-           const availablePlayers = players.filter(p => !assignedIds.includes(p.id));
+           const availablePlayers = players.filter(p => p.present && !assignedIds.includes(p.id));
 
            badge.innerText = availablePlayers.length;
            bank.innerHTML = '';
@@ -381,7 +380,7 @@
            }
 
            if (availablePlayers.length === 0) {
-               bank.innerHTML = `<span class="text-xs text-slate-500 italic p-1">Alle Spieler zugeteilt</span>`;
+               bank.innerHTML = `<span class="text-xs text-slate-500 italic p-1">Keine freien (anwesenden) Spieler</span>`;
                return;
            }
 
@@ -405,7 +404,8 @@
                t.player2 = null;
            });
 
-           const shuffled = [...players].sort(() => Math.random() - 0.5);
+           const presentPlayers = players.filter(p => p.present);
+           const shuffled = [...presentPlayers].sort(() => Math.random() - 0.5);
 
            let idx = 0;
            for (let table of tables) {
@@ -428,13 +428,48 @@
                const li = document.createElement('li');
                li.className = 'bg-slate-900/80 border border-slate-700/60 rounded-lg p-2.5 flex items-center justify-between';
                li.innerHTML = `
-                   <span class="text-sm font-semibold text-slate-200">${player.name}</span>
+                   <label class="flex items-center space-x-3 cursor-pointer select-none">
+                       <input type="checkbox" ${player.present ? 'checked' : ''} onchange="togglePresence('${player.id}')" class="w-4 h-4 rounded text-emerald-600 bg-slate-800 border-slate-600 focus:ring-emerald-500 focus:ring-offset-slate-900">
+                       <span class="text-sm font-semibold ${player.present ? 'text-slate-100' : 'text-slate-500 line-through'}">${player.name}</span>
+                   </label>
                    <button onclick="removePlayer('${player.id}')" class="text-rose-400 hover:text-rose-300 p-1">
                        <i class="fa-solid fa-trash-can"></i>
                    </button>
                `;
                list.appendChild(li);
            });
+       }
+
+       function togglePresence(id) {
+           const player = players.find(p => p.id === id);
+           if (player) {
+               player.present = !player.present;
+               if (!player.present) {
+                   // Remove from tables if marked absent
+                   tables.forEach(t => {
+                       if (t.player1 && t.player1.id === id) t.player1 = null;
+                       if (t.player2 && t.player2.id === id) t.player2 = null;
+                   });
+               }
+               savePlayers();
+               renderPlayerList();
+               renderGrid();
+               renderPlayerBank();
+           }
+       }
+
+       function setAllPresence(status) {
+           players.forEach(p => p.present = status);
+           if (!status) {
+               tables.forEach(t => {
+                   t.player1 = null;
+                   t.player2 = null;
+               });
+           }
+           savePlayers();
+           renderPlayerList();
+           renderGrid();
+           renderPlayerBank();
        }
 
        function addPlayer() {
@@ -444,7 +479,8 @@
 
            const newPlayer = {
                id: Date.now().toString(),
-               name: name
+               name: name,
+               present: true
            };
 
            players.push(newPlayer);
@@ -456,6 +492,10 @@
 
        function removePlayer(id) {
            players = players.filter(p => p.id !== id);
+           tables.forEach(t => {
+               if (t.player1 && t.player1.id === id) t.player1 = null;
+               if (t.player2 && t.player2.id === id) t.player2 = null;
+           });
            savePlayers();
            renderPlayerList();
            renderGrid();
@@ -466,7 +506,7 @@
            localStorage.setItem('tt_players', JSON.stringify(players));
        }
 
-       // --- STOPWATCH LOGIC (Counting Up) ---
+       // --- STOPWATCH LOGIC ---
        function updateTimerDisplay() {
            const mins = Math.floor(timerSeconds / 60);
            const secs = timerSeconds % 60;
@@ -494,7 +534,7 @@
 
        function resetTimer() {
            pauseTimer();
-           timerSeconds = 0; // Reset back to 00:00
+           timerSeconds = 0;
            updateTimerDisplay();
        }
 
