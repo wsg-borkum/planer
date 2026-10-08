@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full select-none">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+   <title>Tischtennis Trainings-Planer</title>
+   <!-- Tailwind CSS CDN -->
+   <script src="https://cdn.tailwindcss.com"></script>
+   <!-- FontAwesome Icons -->
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   <style>
+       body {
+           touch-action: manipulation;
+           -webkit-tap-highlight-color: transparent;
+       }
+       ::-webkit-scrollbar {
+           width: 4px;
+           height: 4px;
+       }
+       ::-webkit-scrollbar-thumb {
+           background: rgba(156, 163, 175, 0.5);
+           border-radius: 9999px;
+       }
+   </style>
+</head>
+<body class="h-full bg-slate-900 text-slate-100 flex flex-col justify-between overflow-hidden font-sans">
+
+   <!-- HEADER: Stoppuhr & Quick Info -->
+   <header class="bg-slate-800 border-b border-slate-700 px-4 py-2.5 flex items-center justify-between shrink-0 shadow-md">
+       <!-- Left: Start/Pause Controls -->
+       <div class="flex items-center space-x-1.5">
+           <button id="btn-timer-start" onclick="startTimer()" class="w-10 h-10 rounded-lg bg-emerald-600 active:bg-emerald-700 text-white flex items-center justify-center shadow transition-transform active:scale-95">
+               <i class="fa-solid fa-play"></i>
+           </button>
+           <button id="btn-timer-pause" onclick="pauseTimer()" class="w-10 h-10 rounded-lg bg-amber-600 active:bg-amber-700 text-white flex items-center justify-center shadow transition-transform active:scale-95 hidden">
+               <i class="fa-solid fa-pause"></i>
+           </button>
+       </div>
+
+       <!-- Center: Digital Stopwatch Display -->
+       <div class="flex flex-col items-center">
+           <span id="timer-display" class="font-mono text-2xl font-bold tracking-wider text-emerald-400 drop-shadow">00:00</span>
+           <span class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Stoppuhr</span>
+       </div>
+
+       <!-- Right: Reset Timer Button -->
+       <div>
+           <button onclick="resetTimer()" class="w-10 h-10 rounded-lg bg-slate-700 active:bg-slate-600 text-slate-300 flex items-center justify-center shadow transition-transform active:scale-95">
+               <i class="fa-solid fa-rotate-left"></i>
+           </button>
+       </div>
+   </header>
+
+   <!-- MAIN CONTENT CONTAINER -->
+   <main class="flex-1 flex flex-col overflow-hidden relative">
+
+       <!-- VIEW 1: HALLENPLAN & TISCHE -->
+       <section id="view-hall" class="flex-1 flex flex-col p-3 overflow-hidden">
+           <!-- Grid Controls Toolbar -->
+           <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 mb-2.5 border border-slate-700/60 flex items-center justify-between shadow-sm shrink-0">
+               <div class="flex items-center space-x-2">
+                   <label for="grid-select" class="text-xs font-semibold text-slate-300">Raster:</label>
+                   <select id="grid-select" onchange="changeGrid(this.value)" class="bg-slate-900 border border-slate-600 text-emerald-400 font-bold text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-500">
+                       <option value="2x2">2 × 2 (4 Tische)</option>
+                       <option value="2x3">2 × 3 (6 Tische)</option>
+                       <option value="2x4" selected>2 × 4 (8 Tische)</option>
+                       <option value="3x3">3 × 3 (9 Tische)</option>
+                   </select>
+               </div>
+
+               <!-- Action Button: Draw / Auslosen -->
+               <button onclick="autoPairing()" class="bg-emerald-600 active:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center space-x-1.5 shadow transition-transform active:scale-95" title="Zufallsauslosung">
+                   <i class="fa-solid fa-dice text-base"></i>
+               </button>
+           </div>
+
+           <!-- Hall Grid Area -->
+           <div id="hall-container" class="flex-1 bg-slate-950/60 rounded-2xl border border-slate-800 p-2 overflow-y-auto flex items-center justify-center min-h-0">
+               <div id="grid-layout" class="w-full h-full grid gap-2 p-1">
+                   <!-- Dynamic Tables rendered via JavaScript -->
+               </div>
+           </div>
+
+           <!-- Player Bank (Pausierende / Verbleibende Spieler) -->
+           <div class="mt-2.5 bg-slate-800/80 backdrop-blur rounded-xl p-2.5 border border-slate-700/60 shrink-0">
+               <div class="flex items-center justify-between mb-1.5">
+                   <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Verfügbare Spieler <span id="selection-hint" class="text-emerald-400 lowercase text-[10px] hidden">(Tippe auf ein Feld zum Zuweisen)</span></span>
+                   <span id="player-count-badge" class="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full font-mono">0</span>
+               </div>
+               <div id="player-bank" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1">
+                   <!-- Player Chips injected via JavaScript -->
+               </div>
+           </div>
+       </section>
+
+       <!-- VIEW 2: SPIELER-VERWALTUNG -->
+       <section id="view-players" class="flex-1 flex flex-col p-3 overflow-hidden hidden">
+           <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 mb-3 shadow">
+               <h2 class="text-sm font-bold text-slate-200 mb-2">Neuen Spieler hinzufügen</h2>
+               <div class="flex space-x-2">
+                   <input type="text" id="new-player-name" placeholder="Name eingeben..." class="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                   <button onclick="addPlayer()" class="bg-emerald-600 active:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow">
+                       <i class="fa-solid fa-plus"></i>
+                   </button>
+               </div>
+           </div>
+
+           <div class="flex-1 bg-slate-800 rounded-xl border border-slate-700 p-3 overflow-y-auto min-h-0">
+               <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Anwesende Spieler</h3>
+               <ul id="player-list" class="space-y-2">
+                   <!-- Dynamic List of Players -->
+               </ul>
+           </div>
+       </section>
+
+   </main>
+
+   <!-- MODAL FOR DIRECT PLAYER ASSIGNMENT -->
+   <div id="player-select-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+       <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-xs p-4 shadow-2xl flex flex-col max-h-[80vh]">
+           <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-700">
+               <h3 class="text-sm font-bold text-slate-100" id="modal-title">Spieler auswählen</h3>
+               <button onclick="closePlayerModal()" class="text-slate-400 hover:text-slate-200 p-1">
+                   <i class="fa-solid fa-xmark text-base"></i>
+               </button>
+           </div>
+           <div id="modal-player-list" class="flex flex-col space-y-1.5 overflow-y-auto flex-1 pr-1">
+               <!-- Available players injected here -->
+           </div>
+       </div>
+   </div>
+
+   <!-- BOTTOM NAVIGATION -->
+   <nav class="bg-slate-800/95 backdrop-blur border-t border-slate-700/80 px-6 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] mb-2 flex justify-around items-center shrink-0 shadow-lg">
+       <button id="nav-btn-hall" onclick="switchTab('hall')" class="flex flex-col items-center text-emerald-400 font-medium text-xs transition-colors">
+           <i class="fa-solid fa-table-tennis-paddle-ball text-xl mb-0.5"></i>
+           <span>Hallenplan</span>
+       </button>
+       <button id="nav-btn-players" onclick="switchTab('players')" class="flex flex-col items-center text-slate-400 hover:text-slate-200 font-medium text-xs transition-colors">
+           <i class="fa-solid fa-users text-xl mb-0.5"></i>
+           <span>Spieler</span>
+       </button>
+   </nav>
+
+   <!-- APPLICATION LOGIC -->
+   <script>
+       // --- DATA STATE ---
+       let players = JSON.parse(localStorage.getItem('tt_players')) || [];
+
+       let currentGrid = '2x4';
+       let tables = [];
+       let timerInterval = null;
+       let timerSeconds = 0; // Stopwatch starts at 0
+
+       let selectedPlayerForPlacement = null; // Currently selected player from bank
+       let targetSlotTableId = null;
+       let targetSlotNum = null;
+
+       // --- INIT ---
+       document.addEventListener('DOMContentLoaded', () => {
+           initTables(currentGrid);
+           renderPlayerList();
+           renderPlayerBank();
+       });
+
+       // --- GRID & TABLE MANAGEMENT ---
+       function initTables(gridFormat) {
+           currentGrid = gridFormat;
+           const [rows, cols] = gridFormat.split('x').map(Number);
+           const totalTables = Math.min(rows * cols, 9);
+
+           tables = [];
+           for (let i = 1; i <= totalTables; i++) {
+               tables.push({
+                   id: i,
+                   active: true,
+                   rotated: false,
+                   player1: null,
+                   player2: null
+               });
+           }
+           renderGrid();
+       }
+
+       function changeGrid(val) {
+           initTables(val);
+           renderPlayerBank();
+       }
+
+       function renderGrid() {
+           const gridLayout = document.getElementById('grid-layout');
+           const [rows, cols] = currentGrid.split('x').map(Number);
+
+           gridLayout.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+           gridLayout.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+           gridLayout.innerHTML = '';
+
+           tables.forEach(table => {
+               const tableCard = document.createElement('div');
+               
+               if (!table.active) {
+                   tableCard.className = 'bg-slate-900/40 border-2 border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center p-2 opacity-50 transition-all';
+                   tableCard.innerHTML = `
+                       <span class="text-xs font-bold text-slate-600 mb-1">${table.id}</span>
+                       <button onclick="toggleTableActive(${table.id})" class="text-xs bg-slate-800 text-emerald-400 px-2 py-1 rounded-md font-semibold border border-slate-700">
+                           <i class="fa-solid fa-plus mr-1"></i>Aktivieren
+                       </button>
+                   `;
+               } else {
+                   tableCard.className = `bg-slate-800 border border-slate-700 rounded-xl flex flex-col justify-between p-2 shadow-md relative transition-transform ${table.rotated ? 'ring-1 ring-emerald-500/40' : ''}`;
+                   tableCard.innerHTML = `
+                       <!-- Table Header Controls -->
+                       <div class="flex items-center justify-between w-full border-b border-slate-700/80 pb-1 mb-1">
+                           <button onclick="rotateTable(${table.id})" class="w-6 h-6 bg-slate-700/80 active:bg-slate-600 rounded text-slate-300 text-xs flex items-center justify-center">
+                               <i class="fa-solid fa-rotate"></i>
+                           </button>
+                           <span class="font-bold text-xs text-emerald-400 font-mono">${table.id}</span>
+                           <button onclick="toggleTableActive(${table.id})" class="w-6 h-6 bg-slate-700/80 active:bg-slate-600 rounded text-rose-400 text-xs flex items-center justify-center">
+                               <i class="fa-solid fa-xmark"></i>
+                           </button>
+                       </div>
+
+                       <!-- Player Slots (Targeted selection on click) -->
+                       <div class="flex ${table.rotated ? 'flex-row justify-around' : 'flex-col space-y-1'} my-1">
+                           <div onclick="handleSlotClick(${table.id}, 1)" class="bg-slate-900/90 rounded px-2 py-1 text-center border ${selectedPlayerForPlacement ? 'border-emerald-500/80 bg-emerald-950/20' : 'border-slate-700/50'} cursor-pointer active:bg-slate-700/50 transition-colors">
+                               <span class="text-xs font-medium ${table.player1 ? 'text-slate-100 font-semibold' : 'text-slate-500 italic'}">
+                                   ${table.player1 ? table.player1.name : '+ Wählen'}
+                               </span>
+                           </div>
+                           <div onclick="handleSlotClick(${table.id}, 2)" class="bg-slate-900/90 rounded px-2 py-1 text-center border ${selectedPlayerForPlacement ? 'border-emerald-500/80 bg-emerald-950/20' : 'border-slate-700/50'} cursor-pointer active:bg-slate-700/50 transition-colors">
+                               <span class="text-xs font-medium ${table.player2 ? 'text-slate-100 font-semibold' : 'text-slate-500 italic'}">
+                                   ${table.player2 ? table.player2.name : '+ Wählen'}
+                               </span>
+                           </div>
+                       </div>
+
+                       <!-- Clear Match Button -->
+                       <button onclick="clearTableMatches(${table.id})" class="text-[10px] text-slate-400 hover:text-slate-200 text-center w-full mt-0.5">
+                           Leeren
+                       </button>
+                   `;
+               }
+               gridLayout.appendChild(tableCard);
+           });
+       }
+
+       function rotateTable(id) {
+           const table = tables.find(t => t.id === id);
+           if (table) {
+               table.rotated = !table.rotated;
+               renderGrid();
+           }
+       }
+
+       function toggleTableActive(id) {
+           const table = tables.find(t => t.id === id);
+           if (table) {
+               if (table.active) {
+                   table.player1 = null;
+                   table.player2 = null;
+               }
+               table.active = !table.active;
+               renderGrid();
+               renderPlayerBank();
+           }
+       }
+
+       function clearTableMatches(id) {
+           const table = tables.find(t => t.id === id);
+           if (table) {
+               table.player1 = null;
+               table.player2 = null;
+               renderGrid();
+               renderPlayerBank();
+           }
+       }
+
+       // --- TARGETED PLAYER ASSIGNMENT LOGIC ---
+       function handleSlotClick(tableId, slotNum) {
+           const table = tables.find(t => t.id === tableId);
+           if (!table) return;
+
+           const existingPlayer = slotNum === 1 ? table.player1 : table.player2;
+
+           // 1. If a player from the bank was selected first, assign them to this slot
+           if (selectedPlayerForPlacement) {
+               if (slotNum === 1) table.player1 = selectedPlayerForPlacement;
+               if (slotNum === 2) table.player2 = selectedPlayerForPlacement;
+               selectedPlayerForPlacement = null;
+               renderGrid();
+               renderPlayerBank();
+               return;
+           }
+
+           // 2. If slot already has a player, remove them back to bank on tap
+           if (existingPlayer) {
+               if (slotNum === 1) table.player1 = null;
+               if (slotNum === 2) table.player2 = null;
+               renderGrid();
+               renderPlayerBank();
+               return;
+           }
+
+           // 3. Open Modal to pick a specific player for this slot
+           openPlayerModal(tableId, slotNum);
+       }
+
+       function selectPlayerFromBank(player) {
+           if (selectedPlayerForPlacement && selectedPlayerForPlacement.id === player.id) {
+               selectedPlayerForPlacement = null; // Deselect
+           } else {
+               selectedPlayerForPlacement = player; // Select
+           }
+           renderGrid();
+           renderPlayerBank();
+       }
+
+       function openPlayerModal(tableId, slotNum) {
+           targetSlotTableId = tableId;
+           targetSlotNum = slotNum;
+
+           const assignedIds = getAssignedPlayerIds();
+           const availablePlayers = players.filter(p => !assignedIds.includes(p.id));
+           const modalList = document.getElementById('modal-player-list');
+           modalList.innerHTML = '';
+
+           if (availablePlayers.length === 0) {
+               modalList.innerHTML = `<div class="text-xs text-slate-400 italic text-center py-4">Keine verfügbaren Spieler mehr vorhanden.</div>`;
+           } else {
+               availablePlayers.forEach(p => {
+                   const btn = document.createElement('button');
+                   btn.className = 'w-full text-left bg-slate-700/70 hover:bg-emerald-600 active:bg-emerald-700 text-slate-100 p-2.5 rounded-lg text-xs font-semibold transition-colors flex justify-between items-center';
+                   btn.innerHTML = `<span>${p.name}</span> <i class="fa-solid fa-plus"></i>`;
+                   btn.onclick = () => {
+                       const table = tables.find(t => t.id === targetSlotTableId);
+                       if (table) {
+                           if (targetSlotNum === 1) table.player1 = p;
+                           if (targetSlotNum === 2) table.player2 = p;
+                       }
+                       closePlayerModal();
+                       renderGrid();
+                       renderPlayerBank();
+                   };
+                   modalList.appendChild(btn);
+               });
+           }
+
+           document.getElementById('modal-title').innerText = `Tisch ${tableId} (Platz ${slotNum})`;
+           document.getElementById('player-select-modal').classList.remove('hidden');
+       }
+
+       function closePlayerModal() {
+           document.getElementById('player-select-modal').classList.add('hidden');
+           targetSlotTableId = null;
+           targetSlotNum = null;
+       }
+
+       // --- PAIRING & PLAYER BANK ---
+       function getAssignedPlayerIds() {
+           const assigned = [];
+           tables.forEach(t => {
+               if (t.player1) assigned.push(t.player1.id);
+               if (t.player2) assigned.push(t.player2.id);
+           });
+           return assigned;
+       }
+
+       function renderPlayerBank() {
+           const bank = document.getElementById('player-bank');
+           const badge = document.getElementById('player-count-badge');
+           const hint = document.getElementById('selection-hint');
+           const assignedIds = getAssignedPlayerIds();
+           const availablePlayers = players.filter(p => !assignedIds.includes(p.id));
+
+           badge.innerText = availablePlayers.length;
+           bank.innerHTML = '';
+
+           if (selectedPlayerForPlacement) {
+               hint.classList.remove('hidden');
+           } else {
+               hint.classList.add('hidden');
+           }
+
+           if (availablePlayers.length === 0) {
+               bank.innerHTML = `<span class="text-xs text-slate-500 italic p-1">Alle Spieler zugeteilt</span>`;
+               return;
+           }
+
+           availablePlayers.forEach(player => {
+               const isSelected = selectedPlayerForPlacement && selectedPlayerForPlacement.id === player.id;
+               const chip = document.createElement('button');
+               chip.onclick = () => selectPlayerFromBank(player);
+               chip.className = `px-2.5 py-1 rounded-lg text-xs font-medium shadow-sm transition-all border ${
+                   isSelected 
+                       ? 'bg-emerald-600 text-white border-emerald-400 ring-2 ring-emerald-500/50' 
+                       : 'bg-slate-700 active:bg-slate-600 text-slate-200 border-slate-600/60'
+               }`;
+               chip.innerText = player.name;
+               bank.appendChild(chip);
+           });
+       }
+
+       function autoPairing() {
+           tables.forEach(t => {
+               t.player1 = null;
+               t.player2 = null;
+           });
+
+           const shuffled = [...players].sort(() => Math.random() - 0.5);
+
+           let idx = 0;
+           for (let table of tables) {
+               if (!table.active) continue;
+               if (idx < shuffled.length) table.player1 = shuffled[idx++];
+               if (idx < shuffled.length) table.player2 = shuffled[idx++];
+           }
+
+           selectedPlayerForPlacement = null;
+           renderGrid();
+           renderPlayerBank();
+       }
+
+       // --- PLAYER MANAGEMENT ---
+       function renderPlayerList() {
+           const list = document.getElementById('player-list');
+           list.innerHTML = '';
+
+           players.forEach((player) => {
+               const li = document.createElement('li');
+               li.className = 'bg-slate-900/80 border border-slate-700/60 rounded-lg p-2.5 flex items-center justify-between';
+               li.innerHTML = `
+                   <span class="text-sm font-semibold text-slate-200">${player.name}</span>
+                   <button onclick="removePlayer('${player.id}')" class="text-rose-400 hover:text-rose-300 p-1">
+                       <i class="fa-solid fa-trash-can"></i>
+                   </button>
+               `;
+               list.appendChild(li);
+           });
+       }
+
+       function addPlayer() {
+           const input = document.getElementById('new-player-name');
+           const name = input.value.trim();
+           if (!name) return;
+
+           const newPlayer = {
+               id: Date.now().toString(),
+               name: name
+           };
+
+           players.push(newPlayer);
+           savePlayers();
+           input.value = '';
+           renderPlayerList();
+           renderPlayerBank();
+       }
+
+       function removePlayer(id) {
+           players = players.filter(p => p.id !== id);
+           savePlayers();
+           renderPlayerList();
+           renderGrid();
+           renderPlayerBank();
+       }
+
+       function savePlayers() {
+           localStorage.setItem('tt_players', JSON.stringify(players));
+       }
+
+       // --- STOPWATCH LOGIC (Counting Up) ---
+       function updateTimerDisplay() {
+           const mins = Math.floor(timerSeconds / 60);
+           const secs = timerSeconds % 60;
+           document.getElementById('timer-display').innerText = 
+               `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+       }
+
+       function startTimer() {
+           if (timerInterval) return;
+           document.getElementById('btn-timer-start').classList.add('hidden');
+           document.getElementById('btn-timer-pause').classList.remove('hidden');
+
+           timerInterval = setInterval(() => {
+               timerSeconds++;
+               updateTimerDisplay();
+           }, 1000);
+       }
+
+       function pauseTimer() {
+           clearInterval(timerInterval);
+           timerInterval = null;
+           document.getElementById('btn-timer-pause').classList.add('hidden');
+           document.getElementById('btn-timer-start').classList.remove('hidden');
+       }
+
+       function resetTimer() {
+           pauseTimer();
+           timerSeconds = 0; // Reset back to 00:00
+           updateTimerDisplay();
+       }
+
+       // --- NAVIGATION ---
+       function switchTab(tab) {
+           const hallView = document.getElementById('view-hall');
+           const playersView = document.getElementById('view-players');
+           const btnHall = document.getElementById('nav-btn-hall');
+           const btnPlayers = document.getElementById('nav-btn-players');
+
+           if (tab === 'hall') {
+               hallView.classList.remove('hidden');
+               playersView.classList.add('hidden');
+               btnHall.className = 'flex flex-col items-center text-emerald-400 font-medium text-xs transition-colors';
+               btnPlayers.className = 'flex flex-col items-center text-slate-400 hover:text-slate-200 font-medium text-xs transition-colors';
+           } else {
+               hallView.classList.add('hidden');
+               playersView.classList.remove('hidden');
+               btnHall.className = 'flex flex-col items-center text-slate-400 hover:text-slate-200 font-medium text-xs transition-colors';
+               btnPlayers.className = 'flex flex-col items-center text-emerald-400 font-medium text-xs transition-colors';
+           }
+       }
+   </script>
+</body>
+</html>
