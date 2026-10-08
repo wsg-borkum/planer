@@ -152,17 +152,7 @@
    <!-- APPLICATION LOGIC -->
    <script>
        // --- DATA STATE ---
-       let players = JSON.parse(localStorage.getItem('tt_players')) || [
-           { id: '1', name: 'Max', present: true },
-           { id: '2', name: 'Anna', present: true },
-           { id: '3', name: 'Lukas', present: true },
-           { id: '4', name: 'Sophie', present: true },
-           { id: '5', name: 'Tim', present: true },
-           { id: '6', name: 'Laura', present: true },
-           { id: '7', name: 'Felix', present: true },
-           { id: '8', name: 'Mia', present: true }
-       ];
-
+       let players = JSON.parse(localStorage.getItem('tt_players')) || [];
        let currentGrid = '2x4';
        let tables = [];
        let timerInterval = null;
